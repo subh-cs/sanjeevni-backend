@@ -108,7 +108,7 @@ app.post("/chat", async (req, res) => {
   //   return;
   // }
 
-  const langToEng = await translate(question, { from: lang, to: 'en', raw: false });
+  const langToEng = await translate(question, { to: 'en', raw: false });
 
   // const completion = await openai.chat.completions.create({
   //   model: "gpt-3.5-turbo",
