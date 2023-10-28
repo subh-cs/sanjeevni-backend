@@ -110,29 +110,27 @@ app.post("/chat", async (req, res) => {
 
   const langToEng = await translate(question, { from: lang, to: 'en', raw: false });
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
-    messages: [
-      {
-        role: "system",
-        content: `
-        "You're a health assitant and you're confident about it"
-        "Answer the health related query in simple language within 1-2 sentences."
-        `,
-      },
-      {
-        role: "user",
-        content: langToEng.text || "Hello",
-      },
-    ],
-  });
-  let GPT3Answer = completion.choices[0].message.content
-  // if (messages.messages) {
-  //   messages = messages.messages; // ChatGPT is not 100% reliable, sometimes it directly returns an array and sometimes a JSON object with a messages property
-  // }
+  // const completion = await openai.chat.completions.create({
+  //   model: "gpt-3.5-turbo",
+  //   messages: [
+  //     {
+  //       role: "system",
+  //       content: `
+  //       "You're a health assitant and you're confident about it"
+  //       "Answer the health related query in simple language within 1-2 sentences."
+  //       `,
+  //     },
+  //     {
+  //       role: "user",
+  //       content: langToEng.text || "Hello",
+  //     },
+  //   ],
+  // });
+  // let GPT3Answer = completion.choices[0].message.content
+
 
   // eng to input lang translation
-  const engToLang = await translate(GPT3Answer, { from: 'en', to: lang });
+  const engToLang = await translate(langToEng.text, { from: 'en', to: lang });
 
   console.log("engToLang", engToLang);
 
