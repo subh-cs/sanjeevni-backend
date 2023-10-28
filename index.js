@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import voice from "elevenlabs-node";
 import express from "express";
 import { promises as fs } from "fs";
+import { getAudioBuffer } from 'simple-tts-mp3';
+import translate from '@iamtraction/google-translate';
 import OpenAI from "openai";
 dotenv.config();
 
@@ -16,6 +18,7 @@ const voiceID = "kgG7dCoKCfLehAPWkJOE";
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }))
 app.use(cors());
 const port = 3000;
 
@@ -52,88 +55,113 @@ const lipSyncMessage = async (message) => {
 };
 
 app.post("/chat", async (req, res) => {
-  const userMessage = req.body.message;
-  // if (!userMessage) {
-    res.send({
-      messages: [
-        {
-          text: "Hey dear... How was your day?",
-          audio: await audioFileToBase64("audios/intro_0.wav"),
-          lipsync: await readJsonTranscript("audios/intro_0.json"),
-          facialExpression: "smile",
-          animation: "Talking_1",
-        },
-        {
-          text: "I missed you so much... Please don't go for so long!",
-          audio: await audioFileToBase64("audios/intro_1.wav"),
-          lipsync: await readJsonTranscript("audios/intro_1.json"),
-          facialExpression: "sad",
-          animation: "Crying",
-        },
-      ],
-    });
-    return;
-  // }
-  if (!elevenLabsApiKey || openai.apiKey === "-") {
-    res.send({
-      messages: [
-        {
-          text: "Please my dear, don't forget to add your API keys!",
-          audio: await audioFileToBase64("audios/api_0.wav"),
-          lipsync: await readJsonTranscript("audios/api_0.json"),
-          facialExpression: "angry",
-          animation: "Angry",
-        },
-        {
-          text: "You don't want to ruin Wawa Sensei with a crazy ChatGPT and ElevenLabs bill, right?",
-          audio: await audioFileToBase64("audios/api_1.wav"),
-          lipsync: await readJsonTranscript("audios/api_1.json"),
-          facialExpression: "smile",
-          animation: "Laughing",
-        },
-      ],
-    });
-    return;
+  const { lang, question } = req.body;
+
+  console.log(req.body);
+
+  // if no required body provided
+  if (!question || !lang) {
+    return res.send({
+      message: `${question} or ${lang} is not provided properly`
+    })
   }
+  // if (!userMessage) {
+  //   res.send({
+  //     messages: [
+  //       {
+  //         text: "Hey dear... How was your day?",
+  //         audio: await audioFileToBase64("audios/intro_0.wav"),
+  //         lipsync: await readJsonTranscript("audios/intro_0.json"),
+  //         facialExpression: "smile",
+  //         animation: "Talking_1",
+  //       },
+  //       {
+  //         text: "I missed you so much... Please don't go for so long!",
+  //         audio: await audioFileToBase64("audios/intro_1.wav"),
+  //         lipsync: await readJsonTranscript("audios/intro_1.json"),
+  //         facialExpression: "sad",
+  //         animation: "Crying",
+  //       },
+  //     ],
+  //   });
+  //   return;
+  // }
+  // if (!elevenLabsApiKey || openai.apiKey === "-") {
+  //   res.send({
+  //     messages: [
+  //       {
+  //         text: "Please my dear, don't forget to add your API keys!",
+  //         audio: await audioFileToBase64("audios/api_0.wav"),
+  //         lipsync: await readJsonTranscript("audios/api_0.json"),
+  //         facialExpression: "angry",
+  //         animation: "Angry",
+  //       },
+  //       {
+  //         text: "You don't want to ruin Wawa Sensei with a crazy ChatGPT and ElevenLabs bill, right?",
+  //         audio: await audioFileToBase64("audios/api_1.wav"),
+  //         lipsync: await readJsonTranscript("audios/api_1.json"),
+  //         facialExpression: "smile",
+  //         animation: "Laughing",
+  //       },
+  //     ],
+  //   });
+  //   return;
+  // }
+
+  const langToEng = await translate(question, { from: lang, to: 'en', raw: false });
 
   const completion = await openai.chat.completions.create({
     model: "gpt-3.5-turbo",
-    max_tokens: 1000,
-    temperature: 0.6,
     messages: [
       {
         role: "system",
         content: `
-        You are a virtual girlfriend.
-        You will always reply with a JSON array of messages. With a maximum of 3 messages.
-        Each message has a text, facialExpression, and animation property.
-        The different facial expressions are: smile, sad, angry, surprised, funnyFace, and default.
-        The different animations are: Talking_0, Talking_1, Talking_2, Crying, Laughing, Rumba, Idle, Terrified, and Angry. 
+        "You're a health assitant and you're confident about it"
+        "Answer the health related query in simple language within 1-2 sentences."
         `,
       },
       {
         role: "user",
-        content: userMessage || "Hello",
+        content: langToEng.text || "Hello",
       },
     ],
   });
-  let messages = JSON.parse(completion.choices[0].message.content);
-  if (messages.messages) {
-    messages = messages.messages; // ChatGPT is not 100% reliable, sometimes it directly returns an array and sometimes a JSON object with a messages property
-  }
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i];
-    // generate audio file
-    const fileName = `audios/message_${i}.mp3`; // The name of your audio file
-    const textInput = message.text; // The text you wish to convert to speech
-    await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput);
-    // generate lipsync
-    await lipSyncMessage(i);
-    message.audio = await audioFileToBase64(fileName);
-    message.lipsync = await readJsonTranscript(`audios/message_${i}.json`);
-  }
+  let GPT3Answer = completion.choices[0].message.content
+  // if (messages.messages) {
+  //   messages = messages.messages; // ChatGPT is not 100% reliable, sometimes it directly returns an array and sometimes a JSON object with a messages property
+  // }
 
-  res.send({ messages });
+  // eng to input lang translation
+  const engToLang = await translate(GPT3Answer, { from: 'en', to: lang });
+
+  console.log("engToLang", engToLang);
+
+  // generate audio buffer
+  const audioBuffer = await getAudioBuffer(engToLang.text, lang);
+
+  const messages = [{
+    message: "audio buffer created successfully",
+    audio: audioBuffer.toString("base64"),
+    lipsync: await readJsonTranscript("audios/api_1.json"),
+    facialExpression: "smile",
+    animation: "Talking_1",
+  }]
+  res.status(200).send({
+    messages
+  })
+  // for (let i = 0; i < messages.length; i++) {
+  //   const message = messages[i];
+  //   // generate audio file
+  //   const fileName = `audios/message_${i}.mp3`; // The name of your audio file
+  //   const textInput = message.text; // The text you wish to convert to speech
+  //   await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput);
+  //   // generate lipsync
+  //   await lipSyncMessage(i);
+  //   message.audio = await audioFileToBase64(fileName);
+  //   message.lipsync = await readJsonTranscript(`audios/message_${i}.json`);
+  // }
+
+  // res.send({ messages });
 });
 
 const readJsonTranscript = async (file) => {
