@@ -144,7 +144,7 @@ app.post("/chat", async (req, res) => {
     audio: audioBuffer.toString("base64"),
     lipsync: await readJsonTranscript("audios/api_1.json"),
     facialExpression: "smile",
-    animation: "Talking_1",
+    animation: "Talking",
   }]
   res.status(200).send({
     messages
