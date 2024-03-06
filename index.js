@@ -9,6 +9,8 @@ import translate from '@iamtraction/google-translate';
 import OpenAI from "openai";
 dotenv.config();
 
+const PORT = process.env.PORT || 3000;
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
@@ -61,7 +63,9 @@ const voiceID = "kgG7dCoKCfLehAPWkJOE";
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }))
-app.use(cors());
+// app.use(cors("*"));
+// allow all origins for now
+app.use(cors({ origin: "*" }));
 const port = 3000;
 
 app.get("/", (req, res) => {
@@ -213,6 +217,6 @@ const audioFileToBase64 = async (file) => {
   return data.toString("base64");
 };
 
-app.listen(process.env.PORT, () => {
+app.listen(PORT, () => {
   console.log(`Sanjeevni listening on port ${PORT}`);
 });
